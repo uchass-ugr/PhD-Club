@@ -1,0 +1,170 @@
+# BigQuery + DuckDB desde RStudio (guía pedagógica)
+
+## 1) Propósito (qué harás y por qué)
+
+* **Aprenderás** a consultar datos masivos en **BigQuery** y a analizarlos localmente con **DuckDB** sin saturar tu RAM.
+* **Meta didáctica:** comprender el *porqué* de cada paso (costes, eficiencia, reproducibilidad), no solo ejecutar código.
+
+## 2) Idea-fuerza (mapa mental rápido)
+
+**BigQuery = nube (filtrar y agregar)** → **Descarga resultado compacto** → **DuckDB = laboratorio local** → **R/Quarto = orquestación y comunicación**.
+
+## 3) Prerrequisitos (antes de empezar)
+
+* Acceso a **Google BigQuery** (proyecto institucional).
+* **RStudio** actualizado.
+* R packages: `bigrquery`, `DBI`, `duckdb`, `dplyr`, `dbplyr`, `arrow`.
+* Carpeta de proyecto con subdirectorios: `data/`, `R/`, `notebooks/`, `outputs/`.
+
+## 4) Flujo de trabajo explicado (pasos + razonamiento)
+
+### Paso A — Autenticarte y pensar el coste
+
+**Qué haces:** conectas R con BigQuery.
+**Por qué:** toda consulta tiene coste por **bytes procesados**; primero estima con *dry run* para no malgastar.
+
+* Estimar coste (sin ejecutar): define filtros y columnas necesarias para reducir volumen.
+* Decisión clave: **evita `SELECT *`**; selecciona lo mínimo útil.
+
+### Paso B — Consulta mínima viable (MVP) en BigQuery
+
+**Qué haces:** ejecutas una consulta que devuelve **solo lo necesario** (filtrado y agregado).
+**Por qué:** pagas por procesado; cuanto menos escanees, mejor.
+**Buena práctica:** documenta la SQL en `R/queries/` con fecha y propósito.
+
+### Paso C — Cache local (Parquet y/o DuckDB)
+
+**Qué haces:** guardas el resultado en **Parquet** y lo registras en **DuckDB**.
+**Por qué:** evitar repetir la consulta (y el coste), acelerar exploración local, liberar memoria.
+
+* Parquet = formato columna, ideal para intercambio.
+* DuckDB = consultas rápidas locales sin cargar todo en RAM.
+
+### Paso D — Análisis local (SQL o dplyr)
+
+**Qué haces:** exploras y modelas en tu máquina, sobre DuckDB.
+**Por qué:** rapidez, cero coste, reproducibilidad.
+**Decisión clave:** usa SQL si quieres control fino; usa `dplyr` si prefieres sintaxis R (dbplyr traduce a SQL).
+
+### Paso E — Documentación reproducible (Quarto)
+
+**Qué haces:** integras narrativa, código y resultados en `.qmd`.
+**Por qué:** transparencia metodológica para papers, docencia y revisión por pares.
+**Tip de rendimiento:** en chunks pesados, usar `cache: true`; o mover cómputo a scripts `.R` y cargar resultados.
+
+### Paso F — Cierre y orden
+
+**Qué haces:** desconectas bases y ordenas artefactos (Parquet, `.duckdb`, figuras, tablas).
+**Por qué:** evitar bloqueos y garantizar portabilidad del proyecto.
+
+## 5) Decisiones que debes justificar (no solo ejecutar)
+
+* **Subset funcional**: ¿qué filtro y qué columnas resuelven tu pregunta de investigación?
+* **Materializar o vista** en BigQuery: ¿vas a reutilizar esa consulta a menudo?
+* **Formato local**: ¿Parquet para intercambio? ¿DuckDB para consulta intensiva?
+* **Dónde explorar**: ¿Quarto (narrativa) o script `.R` (velocidad)?
+* **Versionado de SQL**: nombra archivos por fecha y objetivo analítico.
+
+## 6) Buenas prácticas (hábitos)
+
+* Estima coste con *dry run* antes de lanzar consultas grandes.
+* Selecciona columnas explícitamente; evita `SELECT *`.
+* Cachea resultados intermedios y anota supuestos/limitaciones.
+* Separa funciones reutilizables en `R/funciones.R`.
+* Mantén estructura ordenada:
+
+```
+project/
+├── data/
+│   ├── raw/          # extractos desde BigQuery
+│   ├── processed/    # datos limpios/derivados
+│   └── openalex.duckdb
+├── R/
+│   ├── queries/      # SQL versionadas
+│   ├── funciones.R
+│   └── process_data.R
+├── notebooks/
+│   └── analysis.qmd
+└── outputs/
+```
+
+## 7) Errores frecuentes y cómo evitarlos
+
+* **Descargar de más:** define primero tu pregunta → filtra y selecciona lo mínimo.
+* **Reconsultar lo mismo:** guarda Parquet/DuckDB y reutiliza.
+* **Quarto lento con datos grandes:** usa `cache: true` o preprocesa en `.R`.
+* **Sin trazabilidad:** archiva SQL, registra fechas, guarda metadatos (origen, filtros, versión).
+
+## 8) Ejercicios guiados (para aprender investigando)
+
+1. **Costo consciente:** Haz un *dry run* filtrando OpenAlex por `publication_year >= 2020` y columnas `id`, `authorships`, `cited_by_count`. Anota bytes estimados y cómo los reducirías más.
+2. **Caché local:** Ejecuta la consulta, guarda **Parquet** en `data/` y crea/actualiza `openalex.duckdb` con una tabla `oa2020`.
+3. **Consulta comparativa:** Sobre DuckDB, calcula por país del autor la media de citas y nº de publicaciones (requiere `JOIN` con tabla de países). Explica por qué usaste `LEFT JOIN` o `INNER JOIN`.
+4. **Mini-informe Quarto:** Redacta una nota metodológica con tu SQL, coste estimado, decisiones de filtrado y una tabla/figura final. Incluye limitaciones.
+
+## 9) Recursos esenciales
+
+* BigQuery en R: [https://bigrquery.r-dbi.org](https://bigrquery.r-dbi.org)
+* DuckDB para R: [https://duckdb.org/docs/api/r](https://duckdb.org/docs/api/r)
+* Parquet (Arrow) en R: [https://arrow.apache.org/docs/r/](https://arrow.apache.org/docs/r/)
+
+---
+
+## Apéndice — Fragmentos modelo (para adaptar, no copiar sin pensar)
+
+**Instalación paquetes (una sola vez):**
+
+```r
+install.packages(c("bigrquery","DBI","duckdb","dplyr","dbplyr","arrow"))
+```
+
+**Autenticación + dry run:**
+
+```r
+library(bigrquery)
+project_id <- "TU_PROYECTO"
+sql <- "SELECT id, authorships, cited_by_count FROM `openalex.publications` WHERE publication_year >= 2020"
+bq_perform_query(project = project_id, query = sql, dry_run = TRUE)
+```
+
+**Consulta y descarga:**
+
+```r
+job <- bq_project_query(project_id, sql)
+df  <- bq_table_download(job)
+```
+
+**Cache Parquet + DuckDB:**
+
+```r
+library(arrow)
+dir.create("data", showWarnings = FALSE)
+arrow::write_parquet(df, "data/openalex_2020.parquet")
+
+library(duckdb); library(DBI)
+con <- dbConnect(duckdb(), "data/openalex.duckdb")
+dbExecute(con, "
+  CREATE TABLE IF NOT EXISTS oa2020 AS
+  SELECT * FROM read_parquet('data/openalex_2020.parquet')
+")
+```
+
+**Exploración con dplyr (traducido a SQL por dbplyr):**
+
+```r
+library(dplyr)
+oa <- tbl(con, "oa2020")
+
+oa %>%
+  mutate(tramo = ifelse(n_publicaciones >= 10, "alto", "medio_bajo")) %>%
+  group_by(tramo) %>%
+  summarise(citas_medias = mean(media_citas, na.rm = TRUE)) %>%
+  arrange(desc(citas_medias)) %>%
+  collect()
+```
+
+**Cierre:**
+
+```r
+dbDisconnect(con, shutdown = TRUE)
+```
