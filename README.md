@@ -7,11 +7,10 @@ Asistencia mínima del 70% de las sesiones anuales y organización de al menos u
 
 ## Próximas reuniones
 +
-+
-+
 
 
 ## Histórico
 + Taller sobre el diseño de la carrera científica, a cargo de Nicolás Robinson-García (noviembre 2025)
 + Taller de resúmenes en inglés, a cargo de Santiago Chambó (diciembre 2025)
-+
++ Taller sobre el uso del tiempo en el doctorado, a cargo de Maribel Alejandra Mella Guzmán (enero 2026)
++ 
