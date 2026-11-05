@@ -5,10 +5,6 @@ Este repositorio contiene un histórico de las herramientas, lecturas y material
 **Requisitos para obtener certificado**
 Asistencia mínima del 70% de las sesiones anuales y organización de al menos un seminario.
 
-## Próximas reuniones
-+
-
-
 ## Histórico
 + Taller sobre el diseño de la carrera científica, a cargo de Nicolás Robinson-García (noviembre 2025)
 + Taller de resúmenes en inglés, a cargo de Santiago Chambó (diciembre 2025)
